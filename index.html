@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fluid Background Metaballs</title>
+    <!-- Load p5.js from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  </head>
+  <body>
+    <!-- Vertex Shader -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+      attribute vec3 aPosition;
+      attribute vec2 aTexCoord;
+      varying vec2 vTexCoord;
+      
+      void main() {
+        vTexCoord = aTexCoord;
+        gl_Position = vec4(aPosition, 1.0);
+      }
+    </script>
+
+    <!-- Fragment Shader -->
+    <script id="fragment-shader" type="x-shader/x-fragment">
+      #ifdef GL_ES
+      precision mediump float;
+      #endif
+
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      // Arrays for metaball centers (normalized) and their radii
+      uniform vec2 u_ballPos[4];
+      uniform float u_ballRadius[4];
+
+      void main() {
+        // Get normalized coordinates for current pixel (0.0 to 1.0)
+        vec2 st = gl_FragCoord.xy / u_resolution;
+        float strength = 0.0;
+        // Sum the contributions of all metaballs
+        for (int i = 0; i < 4; i++) {
+          vec2 center = u_ballPos[i];
+          float radius = u_ballRadius[i];
+          float d = distance(st, center);
+          // Avoid potential division by zero (a tiny offset can be added if needed)
+          strength += radius / d;
+        }
+        
+        // Define the color based on the summed strength.
+        // When the strength is above a threshold, a color is produced.
+        vec3 color = vec3(0.0);
+        if (strength > 1.0) {
+          // Use time and strength to generate a dynamic color effect.
+          float t = mod(u_time + strength, 3.1416);
+          color = vec3(0.5 + 0.5 * sin(t),
+                       0.5 + 0.5 * cos(t),
+                       0.5 + 0.5 * sin(t * 2.0));
+        }
+        gl_FragColor = vec4(color, 1.0);
+      }
+    </script>
+
+    <!-- Main p5.js Sketch -->
+    <script>
+      let myShader;
+      
+      function setup() {
+        // Use WEBGL mode required for shaders
+        createCanvas(windowWidth, windowHeight, WEBGL);
+        noStroke();
+        // Retrieve the shader sources from the script tags
+        const vert = document.getElementById('vertex-shader').textContent;
+        const frag = document.getElementById('fragment-shader').textContent;
+        myShader = createShader(vert, frag);
+      }
+      
+      function draw() {
+        // Tell p5.js to use our shader for drawing
+        shader(myShader);
+        
+        // Pass resolution and time uniforms to our shader
+        myShader.setUniform("u_resolution", [width, height]);
+        myShader.setUniform("u_time", millis() / 1000.0);
+        
+        // Prepare arrays for ball positions and radii
+        let ballPositions = [];
+        let ballRadii = [];
+        // Generate positions based on sine and cosine functions so that they move over time.
+        for (let i = 0; i < 4; i++) {
+          let angle = millis() / 1000.0 * (0.5 + i * 0.3);
+          // Positions are normalized (0 to 1) relative to the canvas size.
+          let x = 0.5 + 0.3 * cos(angle + i);
+          let y = 0.5 + 0.3 * sin(angle + i + 1.0);
+          ballPositions.push(x, y);
+          // Each ball’s radius slightly oscillates with time.
+          let radius = 0.15 + 0.05 * sin(millis() / 1000.0 + i);
+          ballRadii.push(radius);
+        }
+        
+        // Update shader uniforms for metaball positions and sizes.
+        myShader.setUniform("u_ballPos", ballPositions);
+        myShader.setUniform("u_ballRadius", ballRadii);
+        
+        // Draw a rectangle that covers the entire canvas.
+        rect(-width / 2, -height / 2, width, height);
+      }
+      
+      function windowResized() {
+        resizeCanvas(windowWidth, windowHeight);
+      }
+    </script>
+  </body>
+</html>
