@@ -1,4 +1,4 @@
-/* Make the player container fill the viewport */
+/* Player container fills the viewport */
 #player {
     width: 100%;
     height: 100vh;
@@ -11,7 +11,7 @@
     background: #000;
 }
 
-/* Ensure the canvas fills its parent */
+/* The canvas fills its parent */
 .playerCanvas {
     width: 100% !important;
     height: 100% !important;
@@ -19,12 +19,12 @@
     outline: none;
 }
 
-/* Controls styled like Shadertoy's overlay */
+/* Controls overlaid (Shadertoy style) */
 #controls {
     position: absolute;
     top: 10px;
     left: 10px;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0, 0, 0, 0.7);
     padding: 10px;
     color: #fff;
     font-family: sans-serif;
