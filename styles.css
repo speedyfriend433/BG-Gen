@@ -1,0 +1,31 @@
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+#controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  color: #fff;
+  font-family: sans-serif;
+  z-index: 10;
+  max-width: 220px;
+}
+
+#controls label {
+  font-size: 0.9em;
+}
+
+#controls input,
+#controls select {
+  margin: 5px 0;
+  width: 100%;
+}
+
+/* Style for groups of shader-specific controls */
+.shaderControls {
+  margin-top: 10px;
+}
