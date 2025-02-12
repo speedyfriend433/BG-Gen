@@ -36,7 +36,7 @@
         <input type="color" id="colorHigh" value="#333399" />
       </div>
 
-      <!-- Hex Shader Controls (no additional parameters in this example) -->
+      <!-- Hex Shader Controls (no adjustable parameters in this example) -->
       <div id="hexControls" class="shaderControls" style="display: none;">
         <p>Fixed parameters.</p>
       </div>
@@ -82,6 +82,7 @@
       float hash(vec2 p) {
           return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
       }
+      
       float noise(vec2 p) {
           vec2 i = floor(p);
           vec2 f = fract(p);
@@ -108,20 +109,20 @@
       }
     </script>
 
-    <!-- Hex Shader Fragment Shader (replacement for Field Flow) -->
+    <!-- Hex Shader Fragment Shader (updated version) -->
     <script id="hex-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
       precision mediump float;
       #endif
 
-      // Use a fixed resolution of 1024x576 for this shader.
+      // Use a fixed resolution of 1024×576.
       uniform vec2 u_resolution;
       uniform float u_time;
 
       #define TAU 6.2831853
       #define ZIGZAG(x) (1.0 - abs(1.0 - 2.0 * fract(x)))
 
-      // Instead of using HEX() with bit-wise operators, we define constant colors:
+      // Instead of using bit‑wise HEX, we hard‐code constant colors.
       const vec3 c0 = vec3(112.0,192.0,255.0) / 255.0;
       const vec3 c1 = vec3(255.0,112.0,192.0) / 255.0;
       const vec3 c2 = vec3(255.0,208.0,112.0) / 255.0;
@@ -129,14 +130,12 @@
       const vec3 c4 = vec3(112.0,255.0,192.0) / 255.0;
       const vec3 c5 = vec3(255.0,168.0,224.0) / 255.0;
 
-      // A simple function to interpolate between constant colors
-      vec3 getColor(float x) {
+      // Interpolates between constant colors.
+      vec3 getColor(float x){
           const float colorCount = 6.0;
-          // Multiply by the number of colors.
           float index = x * colorCount;
           float lo = floor(index);
           float t = smoothstep(0.95, 1.0, fract(index));
-          // Because we cannot use "%" (modulus) for integers in GLSL ES 1.00, we use a series of conditionals.
           vec3 a;
           vec3 b;
           if(lo < 0.5) a = c0;
@@ -153,18 +152,21 @@
           else if(hi < 3.5) b = c3;
           else if(hi < 4.5) b = c4;
           else b = c5;
-          return mix(a, b, t);
+          return mix(a,b,t);
       }
 
       #define COLWID 0.4
 
       void mainImage(out vec4 fragColor, in vec2 fragCoord) {
           float time = fract(u_time / 4.0);
-          // Scale pixel coordinates using a fixed resolution:
+          // Compute coordinates using fixed resolution.
           vec2 uvR = 2.0 * fragCoord - u_resolution;
           vec2 uv = uvR / length(u_resolution);
-          float lenSq = log(uv.x * uv.x + uv.y * uv.y);
+          // Clamp to avoid log(0): use a small epsilon.
+          float r2 = max(uv.x * uv.x + uv.y * uv.y, 1e-6);
+          float lenSq = log(r2);
           float angle = atan(uv.y, uv.x) / TAU;
+          
           float val = ZIGZAG(0.22 * lenSq - angle + time) * COLWID + 0.05 * lenSq + 2.0 * time;
           vec3 col = getColor(fract(val));
           fragColor = vec4(col, 1.0);
@@ -197,7 +199,7 @@
           return mat2(cc, -ss, ss, cc);
       }
 
-      // Rename noise to myNoise to avoid conflicts.
+      // Rename noise to myNoise
       float myNoise(vec3 p) {
           vec2 i = floor(p.yz);
           vec2 f = fract(p.yz);
