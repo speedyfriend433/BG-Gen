@@ -1,5 +1,4 @@
 let shaderSwirly, shaderHex, shaderFBM3D, currentShader;
-let noiseTexture; // Used for FBM 3D (if needed)
 let cnv;
 
 function setup() {
@@ -13,7 +12,7 @@ function setup() {
   updateCanvasSize();
   noStroke();
 
-  // Retrieve shader sources.
+  // Retrieve shader source strings.
   const vert = document.getElementById("vertex-shader").textContent;
   const swirlyFrag = document.getElementById("swirly-shader").textContent;
   const hexFrag = document.getElementById("hex-shader").textContent;
@@ -24,10 +23,8 @@ function setup() {
   shaderHex = createShader(vert, hexFrag);
   shaderFBM3D = createShader(vert, fbm3dFrag);
 
-  // Set default shader to Swirly.
+  // Set default shader.
   currentShader = shaderSwirly;
-
-  // (If needed, you can create a noise texture for FBM3D here.)
 
   // Setup UI for shader selection.
   const shaderSelect = document.getElementById("shaderSelect");
@@ -50,6 +47,7 @@ function setup() {
   });
 }
 
+// Helper: Ensure the drawing buffer matches the displayed size.
 function updateCanvasSize() {
   let canvasElt = cnv.elt;
   let displayWidth = canvasElt.clientWidth;
@@ -70,14 +68,11 @@ function hideAllControls() {
 
 function draw() {
   updateCanvasSize();
-  shader(currentShader);
 
-  // For the fixed‐resolution shaders, we pass a constant resolution.
-  // For swirly and hex shaders, use [1024,576]
+  // For the fixed‐resolution shaders (swirly, hex), force resolution 1024×576.
   if(currentShader === shaderSwirly || currentShader === shaderHex) {
     currentShader.setUniform("u_resolution", [1024.0, 576.0]);
   } else {
-    // For FBM 3D, use dynamic resolution.
     currentShader.setUniform("u_resolution", [width, height]);
   }
   currentShader.setUniform("u_time", millis() / 1000.0);
@@ -103,14 +98,14 @@ function draw() {
     currentShader.setUniform("u_smoothEdge2", smoothEdge2);
     currentShader.setUniform("u_colorLow", colorLow);
     currentShader.setUniform("u_colorHigh", colorHigh);
-  } else if (currentShader === shaderFBM3D) {
+  }
+  else if (currentShader === shaderFBM3D) {
     let numOct = parseFloat(document.getElementById("numOct").value);
     let uvScale = parseFloat(document.getElementById("uvScale").value);
     currentShader.setUniform("u_numOct", numOct);
     currentShader.setUniform("u_uvScale", uvScale);
   }
   
-  // Draw a plane that fills the canvas.
   plane(width, height);
 }
 
