@@ -3,18 +3,21 @@ let noiseTexture; // For Field Flow shader
 let cnv;
 
 function setup() {
-  // Create a canvas with Shadertoy-like resolution.
-  cnv = createCanvas(840, 473, WEBGL);
-  // Set the canvas id, class, and tabindex to mimic Shadertoy's player.
+  // Create a canvas that fills the player container.
+  cnv = createCanvas(windowWidth, windowHeight, WEBGL);
+  // Parent the canvas to the #player div.
+  cnv.parent("player");
+  // Set the canvas id, class, and tabindex similar to Shadertoy.
   cnv.elt.id = "demogl";
   cnv.elt.className = "playerCanvas";
   cnv.elt.setAttribute("tabindex", "0");
 
-  // Set an orthographic projection so our full-screen plane fills the canvas.
+  // Use an orthographic projection so that drawing plane(width, height)
+  // fills the canvas exactly.
   ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
   noStroke();
 
-  // Retrieve shader sources.
+  // Retrieve shader source strings.
   const vert = document.getElementById("vertex-shader").textContent;
   const swirlyFrag = document.getElementById("swirly-shader").textContent;
   const fieldFlowFrag = document.getElementById("fieldflow-shader").textContent;
@@ -25,10 +28,10 @@ function setup() {
   shaderFieldFlow = createShader(vert, fieldFlowFrag);
   shaderFBM3D = createShader(vert, fbm3dFrag);
 
-  // Default shader is Swirly.
+  // Default shader is Swirly Pattern.
   currentShader = shaderSwirly;
 
-  // Create a noise texture for the Field Flow shader (256×256 grayscale).
+  // Create a noise texture for the Field Flow shader.
   noiseTexture = createGraphics(256, 256);
   noiseTexture.loadPixels();
   for (let x = 0; x < 256; x++) {
@@ -72,13 +75,12 @@ function hideAllControls() {
 }
 
 function draw() {
-  // Update orthographic projection – in case it gets reset.
+  // Update the orthographic projection.
   ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
   shader(currentShader);
   currentShader.setUniform("u_resolution", [width, height]);
   currentShader.setUniform("u_time", millis() / 1000.0);
 
-  // Pass uniforms based on which shader is active.
   if (currentShader === shaderSwirly) {
     let noiseSpeed = parseFloat(document.getElementById("noiseSpeed").value);
     let swirlFactor = parseFloat(document.getElementById("swirlFactor").value);
@@ -111,11 +113,11 @@ function draw() {
     currentShader.setUniform("u_uvScale", uvScale);
   }
   
-  // Draw a full-screen plane that fills the canvas.
+  // Draw a plane that exactly fills the canvas.
   plane(width, height);
 }
 
 function windowResized() {
-  resizeCanvas(840, 473);
+  resizeCanvas(windowWidth, windowHeight);
   ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
 }
