@@ -1,62 +1,46 @@
-let shaderSwirly, shaderFieldFlow, shaderFBM3D, currentShader;
-let noiseTexture; // For Field Flow shader
+let shaderSwirly, shaderHex, shaderFBM3D, currentShader;
+let noiseTexture; // Used for FBM 3D (if needed)
 let cnv;
 
 function setup() {
-  // Create a canvas that initially fills the player container.
+  // Create a canvas that fills the #player container.
   cnv = createCanvas(windowWidth, windowHeight, WEBGL);
   cnv.parent("player");
-  // Set id, class, and tabindex to mimic Shadertoy's player.
   cnv.elt.id = "demogl";
   cnv.elt.className = "playerCanvas";
   cnv.elt.setAttribute("tabindex", "0");
 
-  // Call helper to sync drawing buffer with display size.
   updateCanvasSize();
-
   noStroke();
 
   // Retrieve shader sources.
   const vert = document.getElementById("vertex-shader").textContent;
   const swirlyFrag = document.getElementById("swirly-shader").textContent;
-  const fieldFlowFrag = document.getElementById("fieldflow-shader").textContent;
+  const hexFrag = document.getElementById("hex-shader").textContent;
   const fbm3dFrag = document.getElementById("fbm3d-shader").textContent;
 
   // Create shader objects.
   shaderSwirly = createShader(vert, swirlyFrag);
-  shaderFieldFlow = createShader(vert, fieldFlowFrag);
+  shaderHex = createShader(vert, hexFrag);
   shaderFBM3D = createShader(vert, fbm3dFrag);
 
-  // Default shader.
+  // Set default shader to Swirly.
   currentShader = shaderSwirly;
 
-  // Create a noise texture for Field Flow.
-  noiseTexture = createGraphics(256, 256);
-  noiseTexture.loadPixels();
-  for (let x = 0; x < 256; x++) {
-    for (let y = 0; y < 256; y++) {
-      let index = 4 * (x + y * 256);
-      let val = floor(random(0, 255));
-      noiseTexture.pixels[index] = val;
-      noiseTexture.pixels[index + 1] = val;
-      noiseTexture.pixels[index + 2] = val;
-      noiseTexture.pixels[index + 3] = 255;
-    }
-  }
-  noiseTexture.updatePixels();
+  // (If needed, you can create a noise texture for FBM3D here.)
 
   // Setup UI for shader selection.
   const shaderSelect = document.getElementById("shaderSelect");
-  shaderSelect.addEventListener("change", function () {
+  shaderSelect.addEventListener("change", function() {
     hideAllControls();
     switch (this.value) {
       case "swirly":
         currentShader = shaderSwirly;
         document.getElementById("swirlyControls").style.display = "block";
         break;
-      case "fieldflow":
-        currentShader = shaderFieldFlow;
-        document.getElementById("fieldFlowControls").style.display = "block";
+      case "hex":
+        currentShader = shaderHex;
+        document.getElementById("hexControls").style.display = "block";
         break;
       case "fbm3d":
         currentShader = shaderFBM3D;
@@ -66,7 +50,6 @@ function setup() {
   });
 }
 
-// Helper from webglfundamentals.org: Resize the canvas drawing buffer
 function updateCanvasSize() {
   let canvasElt = cnv.elt;
   let displayWidth = canvasElt.clientWidth;
@@ -87,10 +70,16 @@ function hideAllControls() {
 
 function draw() {
   updateCanvasSize();
-  
   shader(currentShader);
-  // Pass the dynamic resolution
-  currentShader.setUniform("u_resolution", [width, height]);
+
+  // For the fixed‐resolution shaders, we pass a constant resolution.
+  // For swirly and hex shaders, use [1024,576]
+  if(currentShader === shaderSwirly || currentShader === shaderHex) {
+    currentShader.setUniform("u_resolution", [1024.0, 576.0]);
+  } else {
+    // For FBM 3D, use dynamic resolution.
+    currentShader.setUniform("u_resolution", [width, height]);
+  }
   currentShader.setUniform("u_time", millis() / 1000.0);
 
   if (currentShader === shaderSwirly) {
@@ -107,17 +96,13 @@ function draw() {
     }
     let colorLow = hexToRgb(document.getElementById("colorLow").value);
     let colorHigh = hexToRgb(document.getElementById("colorHigh").value);
-
+    
     currentShader.setUniform("u_noiseSpeed", noiseSpeed);
     currentShader.setUniform("u_swirlFactor", swirlFactor);
     currentShader.setUniform("u_smoothEdge1", smoothEdge1);
     currentShader.setUniform("u_smoothEdge2", smoothEdge2);
     currentShader.setUniform("u_colorLow", colorLow);
     currentShader.setUniform("u_colorHigh", colorHigh);
-  } else if (currentShader === shaderFieldFlow) {
-    let flowMult = parseFloat(document.getElementById("flowMult").value);
-    currentShader.setUniform("u_flowMult", flowMult);
-    currentShader.setUniform("u_channel0", noiseTexture);
   } else if (currentShader === shaderFBM3D) {
     let numOct = parseFloat(document.getElementById("numOct").value);
     let uvScale = parseFloat(document.getElementById("uvScale").value);
@@ -132,3 +117,4 @@ function draw() {
 function windowResized() {
   updateCanvasSize();
 }
+
