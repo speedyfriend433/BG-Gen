@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
   </head>
   <body>
-    <!-- Player container (fills viewport) -->
+    <!-- The player container fills the viewport -->
     <div id="player"></div>
 
     <!-- UI Controls overlay -->
@@ -38,7 +38,6 @@
 
       <!-- Hex Shader Controls (no additional parameters in this example) -->
       <div id="hexControls" class="shaderControls" style="display: none;">
-        <!-- You can later add controls for the hex shader if desired -->
         <p>Fixed parameters.</p>
       </div>
 
@@ -58,8 +57,8 @@
       varying vec2 vTexCoord;
       
       void main() {
-        vTexCoord = aTexCoord;
-        gl_Position = vec4(aPosition, 1.0);
+          vTexCoord = aTexCoord;
+          gl_Position = vec4(aPosition, 1.0);
       }
     </script>
 
@@ -69,7 +68,7 @@
       precision mediump float;
       #endif
 
-      // Use u_resolution, u_time, etc. (the names match our uniforms)
+      // Fixed resolution for this shader
       uniform vec2 u_resolution;
       uniform float u_time;
       uniform float u_noiseSpeed;
@@ -83,7 +82,6 @@
       float hash(vec2 p) {
           return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
       }
-      
       float noise(vec2 p) {
           vec2 i = floor(p);
           vec2 f = fract(p);
@@ -92,13 +90,12 @@
           float c = hash(i + vec2(0.0,1.0));
           float d = hash(i + vec2(1.0,1.0));
           vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(a,b,u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+          return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
       }
       
       void main(){
-          // Fixed coordinate system: maps full canvas to (–1,1) vertically.
+          // Map full canvas to a coordinate system with y-range ±1
           vec2 uv = (2.0 * gl_FragCoord.xy - u_resolution.xy) / u_resolution.y;
-          // Original swirly effect logic:
           uv = vec2(noise(uv + u_time * u_noiseSpeed), noise(uv + 10.0));
           float d = uv.x - uv.y;
           d *= u_swirlFactor;
@@ -117,39 +114,60 @@
       precision mediump float;
       #endif
 
-      // Uniforms: we'll use fixed resolution (1024,576) for this shader.
+      // Use a fixed resolution of 1024x576 for this shader.
       uniform vec2 u_resolution;
       uniform float u_time;
 
-      #define TAU (3.14159265*2.0)
-      #define HEX(x) vec3((ivec3(x) >> ivec3(16,8,0)) & 255) / 255.0
+      #define TAU 6.2831853
       #define ZIGZAG(x) (1.0 - abs(1.0 - 2.0 * fract(x)))
-      
-      vec3 color(float x) {
-          const int colorCount = 6;
-          vec3 c[6];
-          c[0] = HEX(0x70c0ff);
-          c[1] = HEX(0xff70c0);
-          c[2] = HEX(0xffd070);
-          c[3] = HEX(0xcf80e0);
-          c[4] = HEX(0x70ffc0);
-          c[5] = HEX(0xffa8e0);
-          x *= float(colorCount);
-          int lo = int(floor(x));
-          return mix(c[lo], c[(lo+1) % colorCount], smoothstep(0.95, 1.0, fract(x)));
+
+      // Instead of using HEX() with bit-wise operators, we define constant colors:
+      const vec3 c0 = vec3(112.0,192.0,255.0) / 255.0;
+      const vec3 c1 = vec3(255.0,112.0,192.0) / 255.0;
+      const vec3 c2 = vec3(255.0,208.0,112.0) / 255.0;
+      const vec3 c3 = vec3(207.0,128.0,224.0) / 255.0;
+      const vec3 c4 = vec3(112.0,255.0,192.0) / 255.0;
+      const vec3 c5 = vec3(255.0,168.0,224.0) / 255.0;
+
+      // A simple function to interpolate between constant colors
+      vec3 getColor(float x) {
+          const float colorCount = 6.0;
+          // Multiply by the number of colors.
+          float index = x * colorCount;
+          float lo = floor(index);
+          float t = smoothstep(0.95, 1.0, fract(index));
+          // Because we cannot use "%" (modulus) for integers in GLSL ES 1.00, we use a series of conditionals.
+          vec3 a;
+          vec3 b;
+          if(lo < 0.5) a = c0;
+          else if(lo < 1.5) a = c1;
+          else if(lo < 2.5) a = c2;
+          else if(lo < 3.5) a = c3;
+          else if(lo < 4.5) a = c4;
+          else a = c5;
+          float hi = lo + 1.0;
+          if(hi >= colorCount) hi = 0.0;
+          if(hi < 0.5) b = c0;
+          else if(hi < 1.5) b = c1;
+          else if(hi < 2.5) b = c2;
+          else if(hi < 3.5) b = c3;
+          else if(hi < 4.5) b = c4;
+          else b = c5;
+          return mix(a, b, t);
       }
 
       #define COLWID 0.4
 
       void mainImage(out vec4 fragColor, in vec2 fragCoord) {
           float time = fract(u_time / 4.0);
-          // Use a scaled coordinate system with fixed resolution.
-          vec2 uvR = 2.0 * fragCoord - u_resolution.xy;
-          vec2 uv = uvR / length(u_resolution.xy);
+          // Scale pixel coordinates using a fixed resolution:
+          vec2 uvR = 2.0 * fragCoord - u_resolution;
+          vec2 uv = uvR / length(u_resolution);
           float lenSq = log(uv.x * uv.x + uv.y * uv.y);
           float angle = atan(uv.y, uv.x) / TAU;
-          vec3 colA = color(fract(ZIGZAG(0.22 * lenSq - angle + time) * COLWID + 0.05 * lenSq + 2.0 * time));
-          fragColor = vec4(colA,1.0);
+          float val = ZIGZAG(0.22 * lenSq - angle + time) * COLWID + 0.05 * lenSq + 2.0 * time;
+          vec3 col = getColor(fract(val));
+          fragColor = vec4(col, 1.0);
       }
 
       void main(){
@@ -157,7 +175,7 @@
       }
     </script>
 
-    <!-- FBM 3D Fragment Shader (by philip.bertani; left unchanged) -->
+    <!-- FBM 3D Fragment Shader (by philip.bertani; unchanged) -->
     <script id="fbm3d-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
       precision mediump float;
@@ -179,7 +197,7 @@
           return mat2(cc, -ss, ss, cc);
       }
 
-      // Rename noise to myNoise
+      // Rename noise to myNoise to avoid conflicts.
       float myNoise(vec3 p) {
           vec2 i = floor(p.yz);
           vec2 f = fract(p.yz);
@@ -243,4 +261,3 @@
     <script src="script.js"></script>
   </body>
 </html>
-
