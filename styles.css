@@ -11,7 +11,7 @@
     background: #000;
 }
 
-/* The canvas fills its parent */
+/* Ensure the canvas fills its parent */
 .playerCanvas {
     width: 100% !important;
     height: 100% !important;
@@ -19,12 +19,12 @@
     outline: none;
 }
 
-/* Controls overlaid (Shadertoy style) */
+/* UI Controls overlaid (Shadertoy style) */
 #controls {
     position: absolute;
     top: 10px;
     left: 10px;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0,0,0,0.7);
     padding: 10px;
     color: #fff;
     font-family: sans-serif;
@@ -42,3 +42,4 @@
 .shaderControls {
     margin-top: 10px;
 }
+
