@@ -4,19 +4,19 @@
     <meta charset="UTF-8" />
     <title>Customizable Shader Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <!-- Load p5.js from CDN -->
+    <!-- p5.js from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
   </head>
   <body>
-    <!-- The player container fills the viewport -->
+    <!-- Player container (fills viewport) -->
     <div id="player"></div>
 
-    <!-- UI Controls (overlay) -->
+    <!-- UI Controls overlay -->
     <div id="controls">
       <label for="shaderSelect">Select Shader:</label>
       <select id="shaderSelect">
         <option value="swirly">Swirly Pattern</option>
-        <option value="fieldflow">Field Flow</option>
+        <option value="hex">Hex Shader</option>
         <option value="fbm3d">FBM 3D</option>
       </select>
 
@@ -36,10 +36,10 @@
         <input type="color" id="colorHigh" value="#333399" />
       </div>
 
-      <!-- Field Flow Controls -->
-      <div id="fieldFlowControls" class="shaderControls" style="display: none;">
-        <label for="flowMult">Flow Multiplier:</label>
-        <input type="range" id="flowMult" min="0.001" max="0.01" step="0.0005" value="0.003125" />
+      <!-- Hex Shader Controls (no additional parameters in this example) -->
+      <div id="hexControls" class="shaderControls" style="display: none;">
+        <!-- You can later add controls for the hex shader if desired -->
+        <p>Fixed parameters.</p>
       </div>
 
       <!-- FBM 3D Controls -->
@@ -58,17 +58,18 @@
       varying vec2 vTexCoord;
       
       void main() {
-          vTexCoord = aTexCoord;
-          gl_Position = vec4(aPosition, 1.0);
+        vTexCoord = aTexCoord;
+        gl_Position = vec4(aPosition, 1.0);
       }
     </script>
 
-    <!-- Swirly Pattern Fragment Shader (updated coordinate transform) -->
+    <!-- Swirly Pattern Fragment Shader -->
     <script id="swirly-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
       precision mediump float;
       #endif
 
+      // Use u_resolution, u_time, etc. (the names match our uniforms)
       uniform vec2 u_resolution;
       uniform float u_time;
       uniform float u_noiseSpeed;
@@ -80,24 +81,24 @@
 
       // Simple 2D noise function
       float hash(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+          return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
       }
       
       float noise(vec2 p) {
           vec2 i = floor(p);
           vec2 f = fract(p);
           float a = hash(i);
-          float b = hash(i + vec2(1.0, 0.0));
-          float c = hash(i + vec2(0.0, 1.0));
-          float d = hash(i + vec2(1.0, 1.0));
+          float b = hash(i + vec2(1.0,0.0));
+          float c = hash(i + vec2(0.0,1.0));
+          float d = hash(i + vec2(1.0,1.0));
           vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+          return mix(a,b,u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
       }
       
       void main(){
-          // Original Shadertoy transform: maps full canvas to a coordinate system from -aspect to +aspect and -1 to +1.
+          // Fixed coordinate system: maps full canvas to (–1,1) vertically.
           vec2 uv = (2.0 * gl_FragCoord.xy - u_resolution.xy) / u_resolution.y;
-          // You can then use uv as in the original code.
+          // Original swirly effect logic:
           uv = vec2(noise(uv + u_time * u_noiseSpeed), noise(uv + 10.0));
           float d = uv.x - uv.y;
           d *= u_swirlFactor;
@@ -110,105 +111,53 @@
       }
     </script>
 
-    <!-- Field Flow Fragment Shader (updated coordinate transform) -->
-    <script id="fieldflow-shader" type="x-shader/x-fragment">
+    <!-- Hex Shader Fragment Shader (replacement for Field Flow) -->
+    <script id="hex-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
       precision mediump float;
       #endif
 
+      // Uniforms: we'll use fixed resolution (1024,576) for this shader.
       uniform vec2 u_resolution;
       uniform float u_time;
-      uniform sampler2D u_channel0;
-      uniform float u_flowMult;
 
-      // Rotation helpers
-      vec2 Rot(vec2 p, float t) {
-          float c = cos(t), s = sin(t);
-          return vec2(p.x * c + p.y * s, -p.x * s + p.y * c);
-      }
-      vec2 RotCS(vec2 p, float c, float s) {
-          return vec2(p.x * c + p.y * s, -p.x * s + p.y * c);
-      }
+      #define TAU (3.14159265*2.0)
+      #define HEX(x) vec3((ivec3(x) >> ivec3(16,8,0)) & 255) / 255.0
+      #define ZIGZAG(x) (1.0 - abs(1.0 - 2.0 * fract(x)))
       
-      // Custom random function
-      float random(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+      vec3 color(float x) {
+          const int colorCount = 6;
+          vec3 c[6];
+          c[0] = HEX(0x70c0ff);
+          c[1] = HEX(0xff70c0);
+          c[2] = HEX(0xffd070);
+          c[3] = HEX(0xcf80e0);
+          c[4] = HEX(0x70ffc0);
+          c[5] = HEX(0xffa8e0);
+          x *= float(colorCount);
+          int lo = int(floor(x));
+          return mix(c[lo], c[(lo+1) % colorCount], smoothstep(0.95, 1.0, fract(x)));
       }
-      
-      // Our renamed noise function to avoid matching overload errors.
-      float fbmNoise(vec3 p) {
-          vec2 i = floor(p.yz);
-          vec2 f = fract(p.yz);
-          float a = random(i + vec2(0.0));
-          float b = random(i + vec2(1.0, 0.0));
-          float c = random(i + vec2(0.0, 1.0));
-          float d = random(i + vec2(1.0, 1.0));
-          vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+
+      #define COLWID 0.4
+
+      void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+          float time = fract(u_time / 4.0);
+          // Use a scaled coordinate system with fixed resolution.
+          vec2 uvR = 2.0 * fragCoord - u_resolution.xy;
+          vec2 uv = uvR / length(u_resolution.xy);
+          float lenSq = log(uv.x * uv.x + uv.y * uv.y);
+          float angle = atan(uv.y, uv.x) / TAU;
+          vec3 colA = color(fract(ZIGZAG(0.22 * lenSq - angle + time) * COLWID + 0.05 * lenSq + 2.0 * time));
+          fragColor = vec4(colA,1.0);
       }
-      
-      // Use the new noise function in pot()
-      float pot(vec2 pos) {
-          float t = u_time * 0.1;
-          vec3 p = vec3(pos + vec2(u_time * 0.4, 0.0), t);
-          float n = fbmNoise(p);
-          n += 0.5 * fbmNoise(p * 2.13);
-          n += 3.0 * fbmNoise(vec3(pos * 0.333, 0.0));
-          return n;
-      }
-      
-      // field() returns a vector field based on pos.
-      vec2 field(vec2 pos) {
-          float s = 1.5;
-          pos *= s;
-          float n = pot(pos);
-          float e = 0.1;
-          float nx = pot(pos + vec2(e, 0.0));
-          float ny = pot(pos + vec2(0.0, e));
-          return vec2(-(ny - n), nx - n) / e;
-      }
-      
-      // A pseudorandom function for vec3 input.
-      vec3 random3(vec3 c) {
-          float j = 4096.0 * sin(dot(c, vec3(17.0, 59.4, 15.0)));
-          vec3 r;
-          r.z = fract(512.0 * j);
-          j *= 0.125;
-          r.x = fract(512.0 * j);
-          j *= 0.125;
-          r.y = fract(512.0 * j);
-          r = r - 0.5;
-          float t = -u_time * 0.5;
-          r.xy = Rot(r.xy, t);
-          return r;
-      }
-      
+
       void main(){
-          // === Replacement for: 
-          // vec2 uv = gl_FragCoord.xy; uv /= u_resolution.xy; uv.x*=u_resolution.x/u_resolution.y; uv.y=1.0-uv.y;
-          // We now want:
-          vec2 uv = (2.0 * gl_FragCoord.xy - u_resolution.xy) / u_resolution.y;
-          
-          float lod = 0.0;
-          vec3 d = vec3(0.0);
-          vec3 e = vec3(0.0);
-          for (int i = 0; i < 25; i++) {
-              d += texture2D(u_channel0, uv + u_time * 0.05, lod).xyz;
-              e += texture2D(u_channel0, -uv.yx * 3.0 + u_time * 0.0125, lod).xyz;
-              vec2 new_uv = field(uv) * u_flowMult;
-              lod += length(new_uv) * 5.0;
-              uv += new_uv;
-          }
-          vec3 c = texture2D(u_channel0, uv * 0.1 + u_time * 0.025, lod).xyz;
-          d *= (1.0 / 50.0);
-          e *= (1.0 / 50.0);
-          c = mix(c, d, length(d));
-          c = mix(c, e, length(e));
-          gl_FragColor = vec4(c, 1.0);
+          mainImage(gl_FragColor, gl_FragCoord.xy);
       }
     </script>
 
-    <!-- FBM 3D Fragment Shader (original; already working) -->
+    <!-- FBM 3D Fragment Shader (by philip.bertani; left unchanged) -->
     <script id="fbm3d-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
       precision mediump float;
@@ -216,8 +165,8 @@
 
       uniform vec2 u_resolution;
       uniform float u_time;
-      uniform float u_numOct;   // number of FBM octaves
-      uniform float u_uvScale;  // scales the UV coordinates
+      uniform float u_numOct;
+      uniform float u_uvScale;
 
       #define pi 3.14159265
 
@@ -230,16 +179,16 @@
           return mat2(cc, -ss, ss, cc);
       }
 
-      // Renamed the noise function to myNoise to avoid conflicts.
+      // Rename noise to myNoise
       float myNoise(vec3 p) {
           vec2 i = floor(p.yz);
           vec2 f = fract(p.yz);
           float a = random(i + vec2(0.0));
-          float b = random(i + vec2(1.0, 0.0));
-          float c = random(i + vec2(0.0, 1.0));
-          float d = random(i + vec2(1.0, 1.0));
+          float b = random(i + vec2(1.0,0.0));
+          float c = random(i + vec2(0.0,1.0));
+          float d = random(i + vec2(1.0,1.0));
           vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+          return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
       }
 
       float focus;
@@ -257,7 +206,6 @@
       }
 
       void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-          // Use the same coordinate system as above:
           vec2 uv = (2.0 * fragCoord - u_resolution.xy) / u_resolution.y * u_uvScale;
           float aspectRatio = u_resolution.x / u_resolution.y;
           vec3 rd = normalize(vec3(uv, -1.2));
@@ -295,3 +243,4 @@
     <script src="script.js"></script>
   </body>
 </html>
+
