@@ -1,13 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <title>Fluid Background Metaballs</title>
+    <meta charset="UTF-8">
+    <title>Customizable Shader Backgrounds</title>
     <!-- Load p5.js from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        color: #fff;
+        font-family: sans-serif;
+        z-index: 10;
+        max-width: 200px;
+      }
+      #controls input, #controls select {
+        margin: 5px 0;
+        width: 100%;
+      }
+      #controls label {
+        font-size: 0.9em;
+      }
+    </style>
   </head>
   <body>
-    <!-- Vertex Shader -->
+    <!-- UI Controls -->
+    <div id="controls">
+      <label for="shaderSelect">Select Shader:</label>
+      <select id="shaderSelect">
+         <option value="metaballs">Metaballs</option>
+         <option value="swirly">Swirly Pattern</option>
+      </select>
+      <div id="swirlyControls" style="display: none;">
+        <label for="noiseSpeed">Noise Speed:</label>
+        <input type="range" id="noiseSpeed" min="0" max="0.5" step="0.01" value="0.1">
+        
+        <label for="swirlFactor">Swirl Factor:</label>
+        <input type="range" id="swirlFactor" min="1" max="100" step="1" value="20">
+        
+        <label for="smoothEdge1">Smooth Edge Low:</label>
+        <input type="range" id="smoothEdge1" min="0" max="1" step="0.01" value="0.1">
+        
+        <label for="smoothEdge2">Smooth Edge High:</label>
+        <input type="range" id="smoothEdge2" min="0" max="1" step="0.01" value="0.3">
+        
+        <label for="colorLow">Low Color:</label>
+        <input type="color" id="colorLow" value="#191919">
+        
+        <label for="colorHigh">High Color:</label>
+        <input type="color" id="colorHigh" value="#333399">
+      </div>
+    </div>
+
+    <!-- Shared Vertex Shader -->
     <script id="vertex-shader" type="x-shader/x-vertex">
       attribute vec3 aPosition;
       attribute vec2 aTexCoord;
@@ -19,7 +71,7 @@
       }
     </script>
 
-    <!-- Fragment Shader -->
+    <!-- Metaballs Fragment Shader -->
     <script id="fragment-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
       precision mediump float;
@@ -27,28 +79,22 @@
 
       uniform vec2 u_resolution;
       uniform float u_time;
-      // Arrays for metaball centers (normalized) and their radii
       uniform vec2 u_ballPos[4];
       uniform float u_ballRadius[4];
 
       void main() {
-        // Get normalized coordinates for current pixel (0.0 to 1.0)
+        // Normalized coordinates (0 to 1)
         vec2 st = gl_FragCoord.xy / u_resolution;
         float strength = 0.0;
-        // Sum the contributions of all metaballs
         for (int i = 0; i < 4; i++) {
           vec2 center = u_ballPos[i];
           float radius = u_ballRadius[i];
           float d = distance(st, center);
-          // Avoid potential division by zero (a tiny offset can be added if needed)
           strength += radius / d;
         }
-        
-        // Define the color based on the summed strength.
-        // When the strength is above a threshold, a color is produced.
+        // Produce color when strength crosses 1.0 threshold
         vec3 color = vec3(0.0);
         if (strength > 1.0) {
-          // Use time and strength to generate a dynamic color effect.
           float t = mod(u_time + strength, 3.1416);
           color = vec3(0.5 + 0.5 * sin(t),
                        0.5 + 0.5 * cos(t),
@@ -58,48 +104,137 @@
       }
     </script>
 
+    <!-- Swirly Pattern Fragment Shader -->
+    <script id="swirly-shader" type="x-shader/x-fragment">
+      #ifdef GL_ES
+      precision mediump float;
+      #endif
+
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_noiseSpeed;
+      uniform float u_swirlFactor;
+      uniform float u_smoothEdge1;
+      uniform float u_smoothEdge2;
+      uniform vec3 u_colorLow;
+      uniform vec3 u_colorHigh;
+      
+      // A simple 2D noise function
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453123);
+      }
+      
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+      }
+      
+      void main(){
+        // Transform coordinates to be centered and normalized
+        vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+        // Apply noise to the UV coordinates
+        uv = vec2(noise(uv + u_time * u_noiseSpeed), noise(uv + 10.0));
+        // Compute a difference that will be used to mix the colors
+        float d = uv.x - uv.y;
+        d *= u_swirlFactor;
+        d = sin(d);
+        d = d * 0.5 + 0.5;
+        d = 1.0 - d;
+        d = smoothstep(u_smoothEdge1, u_smoothEdge2, d);
+        vec3 col = mix(u_colorLow, u_colorHigh, d);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    </script>
+
     <!-- Main p5.js Sketch -->
     <script>
-      let myShader;
+      let shaderMetaballs;
+      let shaderSwirly;
+      let currentShader;
       
       function setup() {
-        // Use WEBGL mode required for shaders
+        // Create a WEBGL canvas
         createCanvas(windowWidth, windowHeight, WEBGL);
         noStroke();
-        // Retrieve the shader sources from the script tags
-        const vert = document.getElementById('vertex-shader').textContent;
-        const frag = document.getElementById('fragment-shader').textContent;
-        myShader = createShader(vert, frag);
+        
+        // Read shader sources
+        let vert = document.getElementById('vertex-shader').textContent;
+        let metaFrag = document.getElementById('fragment-shader').textContent;
+        let swirlyFrag = document.getElementById('swirly-shader').textContent;
+        
+        // Create shader objects
+        shaderMetaballs = createShader(vert, metaFrag);
+        shaderSwirly = createShader(vert, swirlyFrag);
+        
+        // Default shader: metaballs
+        currentShader = shaderMetaballs;
+        
+        // Listen for shader selection changes
+        let shaderSelect = document.getElementById('shaderSelect');
+        shaderSelect.addEventListener('change', function() {
+          if (this.value === 'metaballs') {
+            currentShader = shaderMetaballs;
+            document.getElementById('swirlyControls').style.display = 'none';
+          } else {
+            currentShader = shaderSwirly;
+            document.getElementById('swirlyControls').style.display = 'block';
+          }
+        });
       }
       
       function draw() {
-        // Tell p5.js to use our shader for drawing
-        shader(myShader);
+        shader(currentShader);
+        currentShader.setUniform("u_resolution", [width, height]);
+        currentShader.setUniform("u_time", millis() / 1000.0);
         
-        // Pass resolution and time uniforms to our shader
-        myShader.setUniform("u_resolution", [width, height]);
-        myShader.setUniform("u_time", millis() / 1000.0);
-        
-        // Prepare arrays for ball positions and radii
-        let ballPositions = [];
-        let ballRadii = [];
-        // Generate positions based on sine and cosine functions so that they move over time.
-        for (let i = 0; i < 4; i++) {
-          let angle = millis() / 1000.0 * (0.5 + i * 0.3);
-          // Positions are normalized (0 to 1) relative to the canvas size.
-          let x = 0.5 + 0.3 * cos(angle + i);
-          let y = 0.5 + 0.3 * sin(angle + i + 1.0);
-          ballPositions.push(x, y);
-          // Each ball’s radius slightly oscillates with time.
-          let radius = 0.15 + 0.05 * sin(millis() / 1000.0 + i);
-          ballRadii.push(radius);
+        if (currentShader === shaderMetaballs) {
+          // Update uniforms for metaballs shader
+          let ballPositions = [];
+          let ballRadii = [];
+          for (let i = 0; i < 4; i++) {
+            let angle = millis() / 1000.0 * (0.5 + i * 0.3);
+            let x = 0.5 + 0.3 * cos(angle + i);
+            let y = 0.5 + 0.3 * sin(angle + i + 1.0);
+            ballPositions.push(x, y);
+            let radius = 0.15 + 0.05 * sin(millis() / 1000.0 + i);
+            ballRadii.push(radius);
+          }
+          currentShader.setUniform("u_ballPos", ballPositions);
+          currentShader.setUniform("u_ballRadius", ballRadii);
+          
+        } else {
+          // Update uniforms for swirly pattern shader using UI controls
+          let noiseSpeed = parseFloat(document.getElementById('noiseSpeed').value);
+          let swirlFactor = parseFloat(document.getElementById('swirlFactor').value);
+          let smoothEdge1 = parseFloat(document.getElementById('smoothEdge1').value);
+          let smoothEdge2 = parseFloat(document.getElementById('smoothEdge2').value);
+          
+          // Convert hex color to normalized RGB array
+          function hexToRgb(hex) {
+            let bigint = parseInt(hex.slice(1), 16);
+            let r = ((bigint >> 16) & 255) / 255;
+            let g = ((bigint >> 8) & 255) / 255;
+            let b = (bigint & 255) / 255;
+            return [r, g, b];
+          }
+          let colorLow = hexToRgb(document.getElementById('colorLow').value);
+          let colorHigh = hexToRgb(document.getElementById('colorHigh').value);
+          
+          currentShader.setUniform("u_noiseSpeed", noiseSpeed);
+          currentShader.setUniform("u_swirlFactor", swirlFactor);
+          currentShader.setUniform("u_smoothEdge1", smoothEdge1);
+          currentShader.setUniform("u_smoothEdge2", smoothEdge2);
+          currentShader.setUniform("u_colorLow", colorLow);
+          currentShader.setUniform("u_colorHigh", colorHigh);
         }
         
-        // Update shader uniforms for metaball positions and sizes.
-        myShader.setUniform("u_ballPos", ballPositions);
-        myShader.setUniform("u_ballRadius", ballRadii);
-        
-        // Draw a rectangle that covers the entire canvas.
+        // Draw a rectangle that covers the entire canvas
         rect(-width / 2, -height / 2, width, height);
       }
       
