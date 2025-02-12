@@ -3,15 +3,15 @@ let noiseTexture; // For Field Flow shader
 let cnv;
 
 function setup() {
-  // Create a canvas that will initially fill the player container.
+  // Create a canvas that initially fills the player container.
   cnv = createCanvas(windowWidth, windowHeight, WEBGL);
   cnv.parent("player");
-  // Set its id, class, and tabindex to mimic Shadertoy’s player.
+  // Set id, class, and tabindex to mimic Shadertoy's player.
   cnv.elt.id = "demogl";
   cnv.elt.className = "playerCanvas";
   cnv.elt.setAttribute("tabindex", "0");
 
-  // Call our resize helper to adjust drawing buffer to the displayed size.
+  // Call helper to sync drawing buffer with display size.
   updateCanvasSize();
 
   noStroke();
@@ -30,7 +30,7 @@ function setup() {
   // Default shader.
   currentShader = shaderSwirly;
 
-  // Create a noise texture for the Field Flow shader.
+  // Create a noise texture for Field Flow.
   noiseTexture = createGraphics(256, 256);
   noiseTexture.loadPixels();
   for (let x = 0; x < 256; x++) {
@@ -45,7 +45,7 @@ function setup() {
   }
   noiseTexture.updatePixels();
 
-  // Setup shader selection UI.
+  // Setup UI for shader selection.
   const shaderSelect = document.getElementById("shaderSelect");
   shaderSelect.addEventListener("change", function () {
     hideAllControls();
@@ -66,19 +66,15 @@ function setup() {
   });
 }
 
-// Our helper from webglfundamentals.org – ensure the drawing buffer matches the displayed size.
+// Helper from webglfundamentals.org: Resize the canvas drawing buffer
 function updateCanvasSize() {
   let canvasElt = cnv.elt;
-  // Get the CSS dimensions.
   let displayWidth = canvasElt.clientWidth;
   let displayHeight = canvasElt.clientHeight;
-  // If the drawing buffer size is different from the displayed size, update it.
   if (width !== displayWidth || height !== displayHeight) {
     resizeCanvas(displayWidth, displayHeight);
-    // Update the viewport:
     drawingContext.viewport(0, 0, displayWidth, displayHeight);
-    // Reset the orthographic projection.
-    ortho(-displayWidth / 2, displayWidth / 2, -displayHeight / 2, displayHeight / 2, 0, 10000);
+    ortho(-displayWidth/2, displayWidth/2, -displayHeight/2, displayHeight/2, 0, 10000);
   }
 }
 
@@ -90,10 +86,10 @@ function hideAllControls() {
 }
 
 function draw() {
-  // Always check that our canvas drawing buffer matches the displayed size.
   updateCanvasSize();
-
+  
   shader(currentShader);
+  // Pass the dynamic resolution
   currentShader.setUniform("u_resolution", [width, height]);
   currentShader.setUniform("u_time", millis() / 1000.0);
 
@@ -111,7 +107,7 @@ function draw() {
     }
     let colorLow = hexToRgb(document.getElementById("colorLow").value);
     let colorHigh = hexToRgb(document.getElementById("colorHigh").value);
-    
+
     currentShader.setUniform("u_noiseSpeed", noiseSpeed);
     currentShader.setUniform("u_swirlFactor", swirlFactor);
     currentShader.setUniform("u_smoothEdge1", smoothEdge1);
@@ -129,11 +125,10 @@ function draw() {
     currentShader.setUniform("u_uvScale", uvScale);
   }
   
-  // Draw a plane that fills the entire canvas.
+  // Draw a plane that fills the canvas.
   plane(width, height);
 }
 
 function windowResized() {
   updateCanvasSize();
 }
-
