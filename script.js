@@ -12,7 +12,7 @@ function setup() {
   updateCanvasSize();
   noStroke();
 
-  // Retrieve shader source strings.
+  // Retrieve shader sources.
   const vert = document.getElementById("vertex-shader").textContent;
   const swirlyFrag = document.getElementById("swirly-shader").textContent;
   const hexFrag = document.getElementById("hex-shader").textContent;
@@ -23,12 +23,12 @@ function setup() {
   shaderHex = createShader(vert, hexFrag);
   shaderFBM3D = createShader(vert, fbm3dFrag);
 
-  // Set default shader.
+  // Set default shader to Swirly.
   currentShader = shaderSwirly;
 
   // Setup UI for shader selection.
   const shaderSelect = document.getElementById("shaderSelect");
-  shaderSelect.addEventListener("change", function() {
+  shaderSelect.addEventListener("change", function () {
     hideAllControls();
     switch (this.value) {
       case "swirly":
@@ -47,7 +47,7 @@ function setup() {
   });
 }
 
-// Helper: Ensure the drawing buffer matches the displayed size.
+// Helper: Resize canvas drawing buffer to displayed size.
 function updateCanvasSize() {
   let canvasElt = cnv.elt;
   let displayWidth = canvasElt.clientWidth;
@@ -69,8 +69,8 @@ function hideAllControls() {
 function draw() {
   updateCanvasSize();
 
-  // For the fixed‐resolution shaders (swirly, hex), force resolution 1024×576.
-  if(currentShader === shaderSwirly || currentShader === shaderHex) {
+  // For fixed-resolution shaders (swirly and hex), force fixed u_resolution.
+  if (currentShader === shaderSwirly || currentShader === shaderHex) {
     currentShader.setUniform("u_resolution", [1024.0, 576.0]);
   } else {
     currentShader.setUniform("u_resolution", [width, height]);
