@@ -1,29 +1,34 @@
 let shaderSwirly, shaderFieldFlow, shaderFBM3D, currentShader;
-let noiseTexture; // Used for the Field Flow shader
+let noiseTexture; // For Field Flow shader
+let cnv;
 
 function setup() {
-  createCanvas(windowWidth, windowHeight, WEBGL);
-  
-  // Set an orthographic projection so our full-screen plane fills the viewport.
-  ortho(-width/2, width/2, -height/2, height/2, 0, 10000);
-  // Make sure our drawing is centered.
+  // Create a canvas with Shadertoy-like resolution.
+  cnv = createCanvas(840, 473, WEBGL);
+  // Set the canvas id, class, and tabindex to mimic Shadertoy's player.
+  cnv.elt.id = "demogl";
+  cnv.elt.className = "playerCanvas";
+  cnv.elt.setAttribute("tabindex", "0");
+
+  // Set an orthographic projection so our full-screen plane fills the canvas.
+  ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
   noStroke();
-  
-  // Retrieve shader source strings.
+
+  // Retrieve shader sources.
   const vert = document.getElementById("vertex-shader").textContent;
   const swirlyFrag = document.getElementById("swirly-shader").textContent;
   const fieldFlowFrag = document.getElementById("fieldflow-shader").textContent;
   const fbm3dFrag = document.getElementById("fbm3d-shader").textContent;
-  
+
   // Create shader objects.
   shaderSwirly = createShader(vert, swirlyFrag);
   shaderFieldFlow = createShader(vert, fieldFlowFrag);
   shaderFBM3D = createShader(vert, fbm3dFrag);
-  
-  // Default shader.
+
+  // Default shader is Swirly.
   currentShader = shaderSwirly;
-  
-  // Create a noise texture for the Field Flow shader (256 x 256 grayscale).
+
+  // Create a noise texture for the Field Flow shader (256×256 grayscale).
   noiseTexture = createGraphics(256, 256);
   noiseTexture.loadPixels();
   for (let x = 0; x < 256; x++) {
@@ -37,10 +42,10 @@ function setup() {
     }
   }
   noiseTexture.updatePixels();
-  
-  // Setup shader selection UI.
+
+  // Setup the shader selection UI.
   const shaderSelect = document.getElementById("shaderSelect");
-  shaderSelect.addEventListener("change", function() {
+  shaderSelect.addEventListener("change", function () {
     hideAllControls();
     switch (this.value) {
       case "swirly":
@@ -67,18 +72,18 @@ function hideAllControls() {
 }
 
 function draw() {
-  // Update orthographic projection (in case of any matrix resets).
-  ortho(-width/2, width/2, -height/2, height/2, 0, 10000);
+  // Update orthographic projection – in case it gets reset.
+  ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
   shader(currentShader);
   currentShader.setUniform("u_resolution", [width, height]);
   currentShader.setUniform("u_time", millis() / 1000.0);
-  
+
+  // Pass uniforms based on which shader is active.
   if (currentShader === shaderSwirly) {
     let noiseSpeed = parseFloat(document.getElementById("noiseSpeed").value);
     let swirlFactor = parseFloat(document.getElementById("swirlFactor").value);
     let smoothEdge1 = parseFloat(document.getElementById("smoothEdge1").value);
     let smoothEdge2 = parseFloat(document.getElementById("smoothEdge2").value);
-    
     function hexToRgb(hex) {
       let bigint = parseInt(hex.slice(1), 16);
       let r = ((bigint >> 16) & 255) / 255;
@@ -95,12 +100,10 @@ function draw() {
     currentShader.setUniform("u_smoothEdge2", smoothEdge2);
     currentShader.setUniform("u_colorLow", colorLow);
     currentShader.setUniform("u_colorHigh", colorHigh);
-    
   } else if (currentShader === shaderFieldFlow) {
     let flowMult = parseFloat(document.getElementById("flowMult").value);
     currentShader.setUniform("u_flowMult", flowMult);
     currentShader.setUniform("u_channel0", noiseTexture);
-    
   } else if (currentShader === shaderFBM3D) {
     let numOct = parseFloat(document.getElementById("numOct").value);
     let uvScale = parseFloat(document.getElementById("uvScale").value);
@@ -108,12 +111,11 @@ function draw() {
     currentShader.setUniform("u_uvScale", uvScale);
   }
   
-  // Draw a full-screen plane (which – thanks to the ortho projection – covers the canvas).
+  // Draw a full-screen plane that fills the canvas.
   plane(width, height);
 }
 
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, 0, 10000);
+  resizeCanvas(840, 473);
+  ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
 }
-
