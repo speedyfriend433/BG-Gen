@@ -4,16 +4,14 @@
     <meta charset="UTF-8" />
     <title>Customizable Shader Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <!-- p5.js from CDN -->
+    <!-- Load p5.js from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
   </head>
   <body>
-    <!-- Container similar to Shadertoy's player -->
-    <div id="player">
-      <!-- The canvas (player) will be inserted here by p5.js -->
-    </div>
-    
-    <!-- UI Controls overlay (positioned over the player) -->
+    <!-- The player container (styled with flex) -->
+    <div id="player"></div>
+
+    <!-- UI Controls overlay (mimicking Shadertoy's style) -->
     <div id="controls">
       <label for="shaderSelect">Select Shader:</label>
       <select id="shaderSelect">
@@ -52,7 +50,7 @@
         <input type="range" id="uvScale" min="0.5" max="5.0" step="0.1" value="2.5" />
       </div>
     </div>
-    
+
     <!-- Shared Vertex Shader -->
     <script id="vertex-shader" type="x-shader/x-vertex">
       attribute vec3 aPosition;
@@ -64,7 +62,7 @@
           gl_Position = vec4(aPosition, 1.0);
       }
     </script>
-    
+
     <!-- Swirly Pattern Fragment Shader -->
     <script id="swirly-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
@@ -109,7 +107,7 @@
           gl_FragColor = vec4(col, 1.0);
       }
     </script>
-    
+
     <!-- Field Flow Fragment Shader -->
     <script id="fieldflow-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
@@ -135,7 +133,7 @@
           return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
       }
       
-      // Define our custom noise function (named fbmNoise) before it's used.
+      // Rename our custom noise to fbmNoise to avoid conflicts.
       float fbmNoise(vec3 p) {
           vec2 i = floor(p.yz);
           vec2 f = fract(p.yz);
@@ -147,7 +145,7 @@
           return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
       }
       
-      // pot() uses our custom noise function.
+      // pot() uses fbmNoise.
       float pot(vec2 pos) {
           float t = u_time * 0.1;
           vec3 p = vec3(pos + vec2(u_time * 0.4, 0.0), t);
@@ -157,7 +155,7 @@
           return n;
       }
       
-      // field() returns a vector field based on pos.
+      // field() returns a 2D vector field.
       vec2 field(vec2 pos) {
           float s = 1.5;
           pos *= s;
@@ -168,7 +166,7 @@
           return vec2(-(ny - n), nx - n) / e;
       }
       
-      // A pseudorandom function for vec3 input.
+      // Pseudorandom function for vec3 input.
       vec3 random3(vec3 c) {
           float j = 4096.0 * sin(dot(c, vec3(17.0, 59.4, 15.0)));
           vec3 r;
@@ -182,8 +180,6 @@
           r.xy = Rot(r.xy, t);
           return r;
       }
-      
-      // (Optional: You may include another noise() if needed—but our shader uses fbmNoise.)
       
       void main(){
           float lod = 0.0;
@@ -208,7 +204,7 @@
           gl_FragColor = vec4(c, 1.0);
       }
     </script>
-    
+
     <!-- FBM 3D Fragment Shader (by philip.bertani@gmail.com) -->
     <script id="fbm3d-shader" type="x-shader/x-fragment">
       #ifdef GL_ES
@@ -231,7 +227,8 @@
           return mat2(cc, -ss, ss, cc);
       }
 
-      float noise(vec3 p) {
+      // Rename the noise function to myNoise
+      float myNoise(vec3 p) {
           vec2 i = floor(p.yz);
           vec2 f = fract(p.yz);
           float a = random(i + vec2(0.0, 0.0));
@@ -250,7 +247,7 @@
           float a = 0.35;
           for (float i = 0.0; i < 10.0; i++) {
               if(i >= u_numOct) break;
-              v += a * noise(p);
+              v += a * myNoise(p);
               a *= 0.25 * (1.2 + focus + focus2);
           }
           return v;
@@ -289,9 +286,8 @@
           mainImage(gl_FragColor, gl_FragCoord.xy);
       }
     </script>
-    
+
     <!-- Include the main script file -->
     <script src="script.js"></script>
   </body>
 </html>
-
