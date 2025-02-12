@@ -3,21 +3,20 @@ let noiseTexture; // For Field Flow shader
 let cnv;
 
 function setup() {
-  // Create a canvas that fills the player container.
+  // Create a canvas that will initially fill the player container.
   cnv = createCanvas(windowWidth, windowHeight, WEBGL);
-  // Parent the canvas to the #player div.
   cnv.parent("player");
-  // Set the canvas id, class, and tabindex similar to Shadertoy.
+  // Set its id, class, and tabindex to mimic Shadertoy’s player.
   cnv.elt.id = "demogl";
   cnv.elt.className = "playerCanvas";
   cnv.elt.setAttribute("tabindex", "0");
 
-  // Use an orthographic projection so that drawing plane(width, height)
-  // fills the canvas exactly.
-  ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
+  // Call our resize helper to adjust drawing buffer to the displayed size.
+  updateCanvasSize();
+
   noStroke();
 
-  // Retrieve shader source strings.
+  // Retrieve shader sources.
   const vert = document.getElementById("vertex-shader").textContent;
   const swirlyFrag = document.getElementById("swirly-shader").textContent;
   const fieldFlowFrag = document.getElementById("fieldflow-shader").textContent;
@@ -28,7 +27,7 @@ function setup() {
   shaderFieldFlow = createShader(vert, fieldFlowFrag);
   shaderFBM3D = createShader(vert, fbm3dFrag);
 
-  // Default shader is Swirly Pattern.
+  // Default shader.
   currentShader = shaderSwirly;
 
   // Create a noise texture for the Field Flow shader.
@@ -46,7 +45,7 @@ function setup() {
   }
   noiseTexture.updatePixels();
 
-  // Setup the shader selection UI.
+  // Setup shader selection UI.
   const shaderSelect = document.getElementById("shaderSelect");
   shaderSelect.addEventListener("change", function () {
     hideAllControls();
@@ -67,6 +66,22 @@ function setup() {
   });
 }
 
+// Our helper from webglfundamentals.org – ensure the drawing buffer matches the displayed size.
+function updateCanvasSize() {
+  let canvasElt = cnv.elt;
+  // Get the CSS dimensions.
+  let displayWidth = canvasElt.clientWidth;
+  let displayHeight = canvasElt.clientHeight;
+  // If the drawing buffer size is different from the displayed size, update it.
+  if (width !== displayWidth || height !== displayHeight) {
+    resizeCanvas(displayWidth, displayHeight);
+    // Update the viewport:
+    drawingContext.viewport(0, 0, displayWidth, displayHeight);
+    // Reset the orthographic projection.
+    ortho(-displayWidth / 2, displayWidth / 2, -displayHeight / 2, displayHeight / 2, 0, 10000);
+  }
+}
+
 function hideAllControls() {
   let controls = document.getElementsByClassName("shaderControls");
   for (let i = 0; i < controls.length; i++) {
@@ -75,8 +90,9 @@ function hideAllControls() {
 }
 
 function draw() {
-  // Update the orthographic projection.
-  ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
+  // Always check that our canvas drawing buffer matches the displayed size.
+  updateCanvasSize();
+
   shader(currentShader);
   currentShader.setUniform("u_resolution", [width, height]);
   currentShader.setUniform("u_time", millis() / 1000.0);
@@ -113,11 +129,11 @@ function draw() {
     currentShader.setUniform("u_uvScale", uvScale);
   }
   
-  // Draw a plane that exactly fills the canvas.
+  // Draw a plane that fills the entire canvas.
   plane(width, height);
 }
 
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  ortho(-width / 2, width / 2, -height / 2, height / 2, 0, 10000);
+  updateCanvasSize();
 }
+
